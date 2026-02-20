@@ -1,18 +1,14 @@
-#!/usr/bin/env python3
 """
 Plaud Linux - Gravador de audio com upload automatico para web.plaud.ai
-
-Alternativa open-source ao Plaud Desktop (que nao tem suporte a Linux).
-Usa PulseAudio/PipeWire para captura, FFmpeg para conversao e Playwright para upload.
 """
 
 import subprocess
 import sys
 import os
 
-from recorder import AudioRecorder
-from uploader import PlaudUploader
-from cli import PlaudCLI
+from plaud_linux.recorder import AudioRecorder
+from plaud_linux.uploader import PlaudUploader
+from plaud_linux.cli import PlaudCLI
 
 
 SESSION_DIR = os.path.expanduser("~/.plaud-linux/session")
@@ -45,7 +41,6 @@ def main():
     recorder = AudioRecorder(RECORDINGS_DIR)
     uploader = PlaudUploader(SESSION_DIR)
 
-    # Se eh a primeira vez ou sessao expirou, login interativo
     if not uploader.has_session():
         print("Primeira execucao - abrindo navegador para login no web.plaud.ai...")
         print("Faca login via Google SSO e feche o navegador quando terminar.")

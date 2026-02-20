@@ -7,8 +7,8 @@ import threading
 import sys
 import os
 
-from recorder import AudioRecorder
-from uploader import PlaudUploader
+from plaud_linux.recorder import AudioRecorder
+from plaud_linux.uploader import PlaudUploader
 
 
 class PlaudCLI:

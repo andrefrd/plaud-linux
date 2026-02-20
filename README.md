@@ -1,70 +1,78 @@
-# Plaud Linux 🎙️
+# Plaud Linux
 
-> Alternativa open-source ao Plaud Desktop para Linux.  
-> Grava áudio do microfone e/ou sistema, converte para MP3 e faz upload automático para [web.plaud.ai](https://web.plaud.ai).
+> Open-source alternative to Plaud Desktop for Linux.
+> Record mic and system audio, convert to MP3, and auto-upload to [web.plaud.ai](https://web.plaud.ai).
 
-## Por que este projeto?
+## Why?
 
-O [Plaud Desktop](https://www.plaud.ai/) oficial não tem suporte a Linux e não funciona via Wine.
-Este projeto resolve isso usando ferramentas nativas do Linux:
+[Plaud Desktop](https://www.plaud.ai/) has no Linux support and doesn't work via Wine.
+This project uses native Linux tools:
 
-- **PulseAudio/PipeWire** para captura de áudio (qualquer app: Discord, Spotify, etc.)
-- **FFmpeg** para conversão para MP3
-- **Playwright** para upload automático via RPA
+- **PulseAudio/PipeWire** for audio capture (any app: Discord, Spotify, etc.)
+- **FFmpeg** for MP3 conversion
+- **Playwright** for automated upload via RPA
 
-## Requisitos
+## Requirements
 
 - Python 3.10+
-- FFmpeg (`sudo apt install ffmpeg`)
-- PulseAudio utils (`sudo apt install pulseaudio-utils`)
-- Ambiente gráfico com system tray (GNOME, KDE, XFCE, etc.)
+- FFmpeg: `sudo apt install ffmpeg`
+- PulseAudio utils: `sudo apt install pulseaudio-utils`
 
-## Instalação
+## Install
 
 ```bash
-git clone https://github.com/seu-usuario/plaud-linux.git
+git clone https://github.com/andrefrd/plaud-linux.git
 cd plaud-linux
-pip install -r requirements.txt
+pip install .
 playwright install chromium
 ```
 
-## Uso
+## Usage
 
 ```bash
-python main.py
+plaud-linux
 ```
 
-### Primeira execução
-Na primeira vez, o app abrirá um navegador Chromium para você fazer login no web.plaud.ai via Google SSO.
-Após o login, **feche o navegador**. A sessão será salva em `~/.plaud-linux/session/`.
+### First run
 
-### Uso normal
-1. Um ícone aparecerá na bandeja do sistema
-2. Clique com o botão direito para ver as opções:
-   - 🎙️ **Gravar (Mic + Sistema)** — grava tudo
-   - 🎤 **Gravar apenas Mic** — só microfone
-   - 🔊 **Gravar apenas Sistema** — só áudio do sistema (Discord, etc.)
-3. Clique em **⏹ Parar Gravação** quando terminar
-4. O áudio será convertido para MP3 e enviado automaticamente para web.plaud.ai
-5. Se o upload falhar, o MP3 fica salvo em `~/.plaud-linux/recordings/`
+A Chromium browser will open for you to log in to web.plaud.ai via Google SSO.
+After login, **close the browser**. Your session is saved at `~/.plaud-linux/session/`.
 
-## Estrutura
+### Recording
+
+```
+==================================================
+  PLAUD LINUX - Gravador + Upload
+==================================================
+
+  [1] Gravar Mic + Sistema
+  [2] Gravar apenas Mic
+  [3] Gravar apenas Sistema
+
+  [L] Login web.plaud.ai
+  [Q] Sair
+```
+
+1. Pick a recording mode (`1`, `2`, or `3`)
+2. Press `S` to stop
+3. Audio is converted to MP3 and uploaded to web.plaud.ai
+4. If upload fails, MP3 is saved at `~/.plaud-linux/recordings/`
+
+## Project Structure
 
 ```
 plaud-linux/
-├── main.py          # Entry point
-├── recorder.py      # Gravação via PulseAudio + FFmpeg
-├── uploader.py      # Upload RPA via Playwright
-├── tray.py          # Interface system tray
+├── plaud_linux/
+│   ├── __init__.py    # Entry point + main()
+│   ├── recorder.py    # PulseAudio + FFmpeg
+│   ├── uploader.py    # Playwright RPA
+│   ├── cli.py         # Terminal interface
+│   └── tray.py        # System tray (optional)
+├── pyproject.toml
 ├── requirements.txt
 └── README.md
 ```
 
-## Problemas conhecidos
-
-- Se a sessão do web.plaud.ai expirar, use a opção "Login web.plaud.ai" no menu da bandeja
-- Em alguns ambientes (Wayland puro), o tray icon pode precisar de uma extensão como `AppIndicator`
-
-## Licença
+## License
 
 MIT
