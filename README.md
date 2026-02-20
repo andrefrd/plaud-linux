@@ -12,20 +12,15 @@ This project uses native Linux tools:
 - **FFmpeg** for MP3 conversion
 - **Playwright** for automated upload via RPA
 
-## Requirements
-
-- Python 3.10+
-- FFmpeg: `sudo apt install ffmpeg`
-- PulseAudio utils: `sudo apt install pulseaudio-utils`
-
-## Install
+## Quick Install
 
 ```bash
 git clone https://github.com/andrefrd/plaud-linux.git
 cd plaud-linux
-pip install .
-playwright install chromium
+./install.sh
 ```
+
+The script installs all dependencies, the `plaud-linux` command globally, and Playwright Chromium.
 
 ## Usage
 
@@ -35,42 +30,29 @@ plaud-linux
 
 ### First run
 
-A Chromium browser will open for you to log in to web.plaud.ai via Google SSO.
-After login, **close the browser**. Your session is saved at `~/.plaud-linux/session/`.
+A browser opens for Google SSO login to web.plaud.ai.
+After login, **close the browser**. Session is saved at `~/.plaud-linux/session/`.
 
 ### Recording
 
 ```
-==================================================
-  PLAUD LINUX - Gravador + Upload
-==================================================
-
   [1] Gravar Mic + Sistema
   [2] Gravar apenas Mic
   [3] Gravar apenas Sistema
-
   [L] Login web.plaud.ai
   [Q] Sair
 ```
 
-1. Pick a recording mode (`1`, `2`, or `3`)
-2. Press `S` to stop
-3. Audio is converted to MP3 and uploaded to web.plaud.ai
-4. If upload fails, MP3 is saved at `~/.plaud-linux/recordings/`
+Press `S` to stop. Audio is converted to MP3 and uploaded automatically.
+If upload fails, MP3 is saved at `~/.plaud-linux/recordings/`.
 
-## Project Structure
+## Manual Install
 
-```
-plaud-linux/
-├── plaud_linux/
-│   ├── __init__.py    # Entry point + main()
-│   ├── recorder.py    # PulseAudio + FFmpeg
-│   ├── uploader.py    # Playwright RPA
-│   ├── cli.py         # Terminal interface
-│   └── tray.py        # System tray (optional)
-├── pyproject.toml
-├── requirements.txt
-└── README.md
+```bash
+sudo apt install ffmpeg pulseaudio-utils pipx
+pipx install .
+pipx runpip plaud-linux -- install playwright
+~/.local/pipx/venvs/plaud-linux/bin/playwright install chromium
 ```
 
 ## License
