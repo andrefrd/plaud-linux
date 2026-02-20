@@ -60,9 +60,9 @@ class PlaudCLI:
                     print(f"\n  Falha no upload. MP3 salvo em: {mp3_path}")
                 print("  Pressione Enter para continuar...")
 
-            self._upload_thread = threading.Thread(target=do_upload, daemon=True)
+            self._upload_thread = threading.Thread(target=do_upload, daemon=False)
             self._upload_thread.start()
-            self._upload_thread.join(timeout=60)
+            self._upload_thread.join()  # Espera o upload terminar (Playwright tem timeout interno de 120s)
         else:
             print("  Erro: nenhum audio gravado.")
 

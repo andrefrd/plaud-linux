@@ -99,8 +99,13 @@ class PlaudUploader:
                 file_input.set_input_files(mp3_path)
                 print("   ok Arquivo inserido no input de upload")
 
-                # 5. Aguardar o upload processar
-                time.sleep(5)
+                # 5. Aguardar ate o site confirmar "Imported"
+                print("   Aguardando confirmacao do site ('Imported')...")
+                try:
+                    page.locator("text=Imported").wait_for(state="visible", timeout=120000)
+                    print("   ok Site confirmou: Imported")
+                except PlaywrightTimeout:
+                    print("   Timeout esperando 'Imported' (120s). Pode ter dado erro no site.")
 
                 print(f"Upload concluido: {os.path.basename(mp3_path)}")
 
