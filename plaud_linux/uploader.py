@@ -104,6 +104,20 @@ class PlaudUploader:
                 try:
                     page.locator("text=Imported").wait_for(state="visible", timeout=120000)
                     print("   ok Site confirmou: Imported")
+                    
+                    print("   Aguardando 30 segundos adicionais por seguranca (processamento do backend)...")
+                    page.wait_for_timeout(30000)
+
+                    # Verificar se o arquivo subiu vendo se o nome aparece na tabela de Recent files
+                    base_name = os.path.splitext(os.path.basename(mp3_path))[0]
+                    print(f"   Verificando tabela de recentes para: '{base_name}'...")
+                    try:
+                        # Busca o nome na lista de arquivos recentes
+                        page.get_by_text(base_name, exact=False).first.wait_for(state="attached", timeout=30000)
+                        print("   ok Arquivo encontrado na lista de arquivos recentes!")
+                    except PlaywrightTimeout:
+                        print(f"   Aviso: '{base_name}' não visível na lista imediata, mas o upload reportou sucesso.")
+
                 except PlaywrightTimeout:
                     print("   Timeout esperando 'Imported' (120s). Pode ter dado erro no site.")
 
