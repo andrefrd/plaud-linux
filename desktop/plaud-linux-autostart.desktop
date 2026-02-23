@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Plaud Linux (Tray)
+Comment=Inicia automaticamente o Plaud Linux na bandeja do sistema
+Exec=plaud-linux-tray
+Icon=plaud-linux
+Terminal=false
+Type=Application
+Hidden=false
+X-GNOME-Autostart-enabled=true

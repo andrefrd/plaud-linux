@@ -35,6 +35,7 @@ def check_dependencies():
 
 
 def main():
+    """Entry point principal — modo CLI (terminal)."""
     ensure_dirs()
     check_dependencies()
 
@@ -48,6 +49,25 @@ def main():
         print("Sessao salva! Proximas execucoes serao automaticas.")
 
     app = PlaudCLI(recorder=recorder, uploader=uploader)
+    app.run()
+
+
+def main_tray():
+    """Entry point para modo System Tray (GNOME/Wayland/X11)."""
+    ensure_dirs()
+    check_dependencies()
+
+    recorder = AudioRecorder(RECORDINGS_DIR)
+    uploader = PlaudUploader(SESSION_DIR)
+
+    if not uploader.has_session():
+        print("Primeira execucao - abrindo navegador para login no web.plaud.ai...")
+        print("Faca login via Google SSO e feche o navegador quando terminar.")
+        uploader.interactive_login()
+        print("Sessao salva!")
+
+    from plaud_linux.tray import PlaudTray
+    app = PlaudTray(recorder=recorder, uploader=uploader)
     app.run()
 
 

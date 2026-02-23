@@ -4,30 +4,43 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "plaud-linux"
-version = "0.1.0"
+version = "0.2.0"
 description = "Open-source alternative to Plaud Desktop for Linux. Record audio and auto-upload to web.plaud.ai."
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 requires-python = ">=3.10"
 authors = [
     {name = "Andre Dantas"}
 ]
-keywords = ["plaud", "audio", "recorder", "linux", "rpa"]
+keywords = ["plaud", "audio", "recorder", "linux", "rpa", "tray"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
     "Intended Audience :: End Users/Desktop",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
     "Topic :: Multimedia :: Sound/Audio :: Capture/Recording",
 ]
 dependencies = [
     "playwright",
+    "Pillow",
+]
+
+[project.optional-dependencies]
+tray = [
+    "pystray",
+    "Pillow",
 ]
 
 [project.scripts]
 plaud-linux = "plaud_linux:main"
+plaud-linux-tray = "plaud_linux:main_tray"
+
+[tool.setuptools.packages.find]
+include = ["plaud_linux*"]
+
+[tool.setuptools.package-data]
+"plaud_linux" = []
 
 [project.urls]
 Homepage = "https://github.com/andrefrd/plaud-linux"
