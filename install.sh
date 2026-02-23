@@ -60,9 +60,24 @@ echo "[3/6] Installing plaud-linux..."
 
 pipx install "$SCRIPT_DIR" --force
 
-# Inject pystray as optional tray backend (fallback para X11)
-PIPX_VENV="$HOME/.local/pipx/venvs/plaud-linux"
-"$PIPX_VENV/bin/pip" install --quiet pystray Pillow
+# Detectar o caminho real do venv (pipx >= 1.x usa ~/.local/share/pipx)
+PIPX_VENV=""
+for candidate in \
+    "$HOME/.local/share/pipx/venvs/plaud-linux" \
+    "$HOME/.local/pipx/venvs/plaud-linux"
+do
+    if [ -d "$candidate" ]; then
+        PIPX_VENV="$candidate"
+        break
+    fi
+done
+
+if [ -z "$PIPX_VENV" ]; then
+    echo "  AVISO: Nao encontrei o venv do pipx. Tente 'pipx inject plaud-linux pystray Pillow' manualmente."
+else
+    echo "  Venv: $PIPX_VENV"
+    "$PIPX_VENV/bin/pip" install --quiet pystray Pillow
+fi
 
 # ─── 4. Playwright Chromium ───────────────────
 echo ""
@@ -79,7 +94,11 @@ echo ""
 echo "[5/6] Generating icons and registering app..."
 
 # Gerar ícones PNG via Pillow
-"$PIPX_VENV/bin/python3" "$SCRIPT_DIR/generate_icons.py"
+if [ -n "$PIPX_VENV" ]; then
+    "$PIPX_VENV/bin/python3" "$SCRIPT_DIR/generate_icons.py"
+else
+    python3 "$SCRIPT_DIR/generate_icons.py" || echo "  Aviso: nao foi possivel gerar icones. Instale Pillow."
+fi
 
 # Instalar ícones no tema do sistema (hicolor)
 for sz in 16 22 32 48 64 128 256; do

@@ -27,7 +27,26 @@ def _is_wayland() -> bool:
 
 
 def _try_import_appindicator():
-    """Tenta importar AppIndicator via GObject Introspection (Wayland/GNOME)."""
+    """Tenta importar AppIndicator via GObject Introspection (Wayland/GNOME).
+
+    python3-gi é instalado via apt e pode não estar no venv isolado do pipx.
+    Injeta os site-packages do sistema para torná-lo acessível.
+    """
+    import subprocess as _sp, sys as _sys
+
+    # Descobre o path do gi no Python do sistema e injeta no sys.path
+    try:
+        result = _sp.run(
+            ["python3", "-c",
+             "import gi, os; print(os.path.dirname(os.path.dirname(gi.__file__)))"],
+            capture_output=True, text=True, timeout=3
+        )
+        gi_site = result.stdout.strip()
+        if gi_site and gi_site not in _sys.path:
+            _sys.path.insert(0, gi_site)
+    except Exception:
+        pass
+
     try:
         import gi
         gi.require_version("Gtk", "3.0")
