@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Plaud Linux
+Comment=Gravador de áudio com upload automático para web.plaud.ai
+Exec=plaud-linux-tray
+Icon=plaud-linux
+Terminal=false
+Type=Application
+Categories=AudioVideo;Audio;Recorder;
+Keywords=plaud;audio;recorder;upload;
+
+# StartupWMClass é necessário para correta identificação no GNOME/Wayland
+StartupWMClass=plaud-linux
