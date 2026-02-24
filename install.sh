@@ -76,7 +76,7 @@ if [ -z "$PIPX_VENV" ]; then
     echo "  AVISO: Nao encontrei o venv do pipx. Tente 'pipx inject plaud-linux pystray Pillow' manualmente."
 else
     echo "  Venv: $PIPX_VENV"
-    "$PIPX_VENV/bin/pip" install --quiet pystray Pillow
+    pipx inject plaud-linux pystray Pillow
 fi
 
 # ─── 4. Playwright Chromium ───────────────────
