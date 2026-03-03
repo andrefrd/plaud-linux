@@ -86,6 +86,7 @@ Haz clic derecho en el ícono para acceder al menú:
 - `🎤 Solo Micrófono`
 - `🔊 Solo Sistema`
 - `⏹ Detener Grabación` — detiene, convierte y sube
+- `📂 Acceder a Grabaciones` — abre la carpeta de grabaciones en el administrador de archivos
 - `🔐 Iniciar sesión web.plaud.ai` — abre el navegador para Google SSO
 - `❌ Salir`
 

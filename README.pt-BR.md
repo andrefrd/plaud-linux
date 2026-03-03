@@ -86,6 +86,7 @@ Clique com o botão direito no ícone para acessar o menu:
 - `🎤 Gravar apenas Mic`
 - `🔊 Gravar apenas Sistema`
 - `⏹ Parar Gravação` — para, converte e faz upload
+- `📂 Acessar Gravações` — abre a pasta de gravações no gerenciador de arquivos
 - `🔐 Login web.plaud.ai` — abre o navegador para o Google SSO
 - `❌ Sair`
 

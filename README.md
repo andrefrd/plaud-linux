@@ -86,6 +86,7 @@ Right-click the tray icon to access the menu:
 - `🎤 Record Mic only`
 - `🔊 Record System only`
 - `⏹ Stop Recording` — stops, converts, uploads
+- `📂 Open Recordings` — opens the recordings folder in the file manager
 - `🔐 Login web.plaud.ai` — opens browser for Google SSO
 - `❌ Quit`
 
