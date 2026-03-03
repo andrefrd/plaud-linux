@@ -5,6 +5,7 @@ Suporte a Wayland (Ubuntu 24+) via AppIndicator/ayatana e fallback para pystray.
 """
 
 import os
+import subprocess
 import sys
 import threading
 import signal
@@ -127,6 +128,12 @@ class _GTKTray:
 
         threading.Thread(target=process, daemon=True).start()
 
+    def _open_recordings(self, widget):
+        """Abre o navegador de arquivos na pasta de gravações."""
+        recordings_path = self.recorder.recordings_dir
+        os.makedirs(recordings_path, exist_ok=True)
+        subprocess.Popen(["xdg-open", recordings_path])
+
     def _do_login(self, widget):
         def login():
             self._notify("🔐 Plaud Linux", "Abrindo navegador para login…")
@@ -163,6 +170,10 @@ class _GTKTray:
 
         sep = Gtk.SeparatorMenuItem()
         menu.append(sep)
+
+        item_recordings = Gtk.MenuItem(label="📂  Acessar Gravações")
+        item_recordings.connect("activate", self._open_recordings)
+        menu.append(item_recordings)
 
         item_login = Gtk.MenuItem(label="🔐  Login web.plaud.ai")
         item_login.connect("activate", self._do_login)
@@ -289,6 +300,12 @@ class _PystrayTray:
 
         threading.Thread(target=process, daemon=True).start()
 
+    def _on_open_recordings(self, icon, item):
+        """Abre o navegador de arquivos na pasta de gravações."""
+        recordings_path = self.recorder.recordings_dir
+        os.makedirs(recordings_path, exist_ok=True)
+        subprocess.Popen(["xdg-open", recordings_path])
+
     def _on_login(self, icon, item):
         def do_login():
             icon.notify("Abrindo navegador para login...", "Plaud Linux")
@@ -314,6 +331,7 @@ class _PystrayTray:
             pystray.MenuItem("⏹  Parar Gravação", self._on_stop_recording,
                              visible=lambda _: self.recorder.is_recording),
             pystray.Menu.SEPARATOR,
+            pystray.MenuItem("📂  Acessar Gravações", self._on_open_recordings),
             pystray.MenuItem("🔐  Login web.plaud.ai", self._on_login),
             pystray.MenuItem("❌  Sair", self._on_quit),
         )
