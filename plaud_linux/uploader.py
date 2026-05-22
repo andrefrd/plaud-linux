@@ -113,10 +113,35 @@ class PlaudUploader:
                     print(f"   Verificando tabela de recentes para: '{base_name}'...")
                     try:
                         # Busca o nome na lista de arquivos recentes
-                        page.get_by_text(base_name, exact=False).first.wait_for(state="attached", timeout=30000)
+                        recent_item = page.get_by_text(base_name, exact=False).first
+                        recent_item.wait_for(state="attached", timeout=30000)
                         print("   ok Arquivo encontrado na lista de arquivos recentes!")
-                    except PlaywrightTimeout:
-                        print(f"   Aviso: '{base_name}' não visível na lista imediata, mas o upload reportou sucesso.")
+
+                        # 6. Abrir o arquivo clicando nele
+                        print("   Abrindo a pagina do arquivo para gerar resumo...")
+                        recent_item.click()
+                        page.wait_for_url("**/file/*", timeout=30000)
+                        file_url = page.url
+                        print(f"   ok Pagina do arquivo aberta: {file_url}")
+
+                        # 7. Clicar em "Generate"
+                        print("   Solicitando geracao de resumo (botao Generate)...")
+                        generate_btn = page.locator("div.liner-btn-txt", has_text="Generate").first
+                        generate_btn.wait_for(state="visible", timeout=15000)
+                        generate_btn.click()
+
+                        # 8. Clicar em "Generate now" no dialogo
+                        print("   Confirmando geracao automatica (botao Generate now)...")
+                        confirm_btn = page.locator("div.generate-button", has_text="Generate now").first
+                        confirm_btn.wait_for(state="visible", timeout=15000)
+                        confirm_btn.click()
+                        print("   ok Processo de Auto Generation iniciado com sucesso!")
+
+                        # Aguardar 5 segundos adicionais para seguranca da requisicao
+                        page.wait_for_timeout(5000)
+
+                    except PlaywrightTimeout as e:
+                        print(f"   Aviso/Erro nas etapas pos-upload: {e}")
 
                 except PlaywrightTimeout:
                     print("   Timeout esperando 'Imported' (120s). Pode ter dado erro no site.")
