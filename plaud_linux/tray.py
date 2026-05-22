@@ -16,7 +16,11 @@ from plaud_linux.uploader import PlaudUploader
 
 
 # Diretório de assets (ícones PNG)
-_ASSETS_DIR = Path(__file__).parent.parent / "assets"
+if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    _ASSETS_DIR = Path(sys._MEIPASS) / "assets"
+else:
+    _ASSETS_DIR = Path(__file__).parent.parent / "assets"
+
 _ICON_IDLE = str(_ASSETS_DIR / "plaud-idle-64.png")
 _ICON_RECORDING = str(_ASSETS_DIR / "plaud-recording-64.png")
 _ICON_UPLOADING = str(_ASSETS_DIR / "plaud-uploading-64.png")

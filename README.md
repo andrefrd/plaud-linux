@@ -47,6 +47,23 @@ No Electron. No Wine. No proprietary blobs.
 
 ## Quick Install
 
+### 📦 AppImage (Recommended for End Users)
+
+The easiest way to run the app without installing anything via terminal:
+
+1. Go to the **[Releases](https://github.com/andrefrd/plaud-linux/releases)** page and download the latest `.AppImage` file.
+2. Allow execution permission:
+   ```bash
+   chmod +x plaud-linux-*.AppImage
+   ```
+3. Double-click to run. On the first launch, it will automatically download the required Chromium browser in the background.
+
+> **Note:** Make sure you have the basic system dependencies installed on your distro (e.g. `ffmpeg` and `pulseaudio-utils`).
+
+---
+
+### 🛠️ Manual Script Install (For Development)
+
 ```bash
 git clone https://github.com/andrefrd/plaud-linux.git
 cd plaud-linux
