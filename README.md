@@ -217,7 +217,53 @@ This approach requires **no private API keys** and works as long as the Plaud we
 | Path | Content |
 |---|---|
 | `~/.plaud-linux/session/` | Persistent browser session (Google SSO) |
-| `~/.plaud-linux/recordings/` | Failed upload fallback MP3s |
+| `~/.plaud-linux/recordings/` | Every recorded MP3 (uploaded ones are pruned after 7 days) |
+
+### Local recording retention
+
+MP3s are kept in `~/.plaud-linux/recordings/` after a **confirmed** upload for
+`7` days, then deleted — roughly 100 MB per hour of audio, so a heavy week would
+otherwise accumulate gigabytes indefinitely.
+
+The rule is intentionally conservative: a file is only deleted if it has a
+confirmed upload **and** is past the retention window. Anything that failed to
+upload (or was never uploaded) is the only copy of that audio and is **kept
+forever**, even if it is old. `.wav` files still being recorded are never
+touched.
+
+Configure it with `~/.plaud-linux/retention.conf`:
+
+```ini
+# Days to keep an uploaded MP3. 0 disables deletion entirely.
+days=7
+```
+
+Or with the `PLAUD_RETENTION_DAYS` environment variable (the config file wins):
+
+```bash
+PLAUD_RETENTION_DAYS=30 plaud-linux-tray
+PLAUD_RETENTION_DAYS=0 plaud-linux         # never delete anything
+```
+
+To see or apply it manually:
+
+```bash
+plaud-linux-prune --dry-run    # what would be deleted
+plaud-linux-prune              # delete now
+plaud-linux-prune --days 3     # one-off, different window
+```
+
+Recordings made **before** this policy have no upload record, so they are never
+deleted. If you know those are already in the cloud, adopt them once — their
+mtime becomes the basis for the retention window:
+
+```bash
+plaud-linux-prune --adopt-existing --dry-run   # see how many would be adopted
+plaud-linux-prune --adopt-existing             # adopt, then prune
+```
+
+`plaud-linux-prune` is cron-friendly: with nothing to remove it prints one
+summary line and exits 0.
 
 ---
 

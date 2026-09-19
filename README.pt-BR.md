@@ -217,7 +217,52 @@ Essa abordagem **não requer chaves de API privadas** e funciona enquanto o web 
 | Caminho | Conteúdo |
 |---|---|
 | `~/.plaud-linux/session/` | Sessão do navegador (Google SSO) |
-| `~/.plaud-linux/recordings/` | MP3s com falha de upload |
+| `~/.plaud-linux/recordings/` | Todo MP3 gravado (os já enviados são removidos após 7 dias) |
+
+### Retenção das gravações locais
+
+Os MP3 ficam em `~/.plaud-linux/recordings/` por `7` dias depois de um upload
+**confirmado**, e então são apagados — cerca de 100 MB por hora de áudio, então
+uma semana intensa acumularia gigabytes indefinidamente.
+
+A regra é conservadora de propósito: um arquivo só é removido se tiver upload
+confirmado **e** estiver fora do prazo. O que falhou no upload (ou nunca foi
+enviado) é a **única cópia** daquele áudio e fica **para sempre**, por mais
+antigo que seja. Arquivos `.wav` ainda em gravação nunca são tocados.
+
+Configure em `~/.plaud-linux/retention.conf`:
+
+```ini
+# Dias para manter um MP3 já enviado. 0 desativa a remoção.
+days=7
+```
+
+Ou pela variável de ambiente `PLAUD_RETENTION_DAYS` (o arquivo tem precedência):
+
+```bash
+PLAUD_RETENTION_DAYS=30 plaud-linux-tray
+PLAUD_RETENTION_DAYS=0 plaud-linux         # nunca apagar nada
+```
+
+Para ver ou aplicar manualmente:
+
+```bash
+plaud-linux-prune --dry-run    # o que seria apagado
+plaud-linux-prune              # apagar agora
+plaud-linux-prune --days 3     # prazo diferente, só desta vez
+```
+
+Gravações feitas **antes** desta política não têm registro de upload, então
+nunca são apagadas. Se você sabe que aqueles áudios já estão na nuvem, adote-os
+uma vez — o mtime passa a ser a base do prazo:
+
+```bash
+plaud-linux-prune --adopt-existing --dry-run   # quantos seriam adotados
+plaud-linux-prune --adopt-existing             # adotar e já limpar
+```
+
+O `plaud-linux-prune` roda bem em cron: quando não há nada a remover ele
+imprime uma linha de resumo e sai com código 0.
 
 ---
 

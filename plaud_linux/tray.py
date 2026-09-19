@@ -13,6 +13,7 @@ from pathlib import Path
 
 from plaud_linux.recorder import AudioRecorder
 from plaud_linux.uploader import PlaudUploader
+from plaud_linux.retention import mark_and_prune
 
 
 # Diretório de assets (ícones PNG)
@@ -124,6 +125,7 @@ class _GTKTray:
                     self._notify("✅ Plaud Linux", "Upload concluído!")
                 else:
                     self._notify("⚠️ Plaud Linux", f"Falha no upload. MP3: {mp3_path}")
+                mark_and_prune(self.recorder.recordings_dir, mp3_path, success)
             else:
                 self._notify("❌ Plaud Linux", "Nenhum áudio gravado.")
             self._set_icon("idle")
@@ -297,6 +299,7 @@ class _PystrayTray:
                     icon.notify("Upload concluído!", "Plaud Linux")
                 else:
                     icon.notify(f"Falha no upload. MP3: {mp3_path}", "Plaud Linux")
+                mark_and_prune(self.recorder.recordings_dir, mp3_path, success)
             else:
                 icon.notify("Erro: nenhum áudio gravado.", "Plaud Linux")
             icon.icon = self._load_or_create_icon("idle")

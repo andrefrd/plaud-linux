@@ -35,6 +35,7 @@ tray = [
 [project.scripts]
 plaud-linux = "plaud_linux:main"
 plaud-linux-tray = "plaud_linux:main_tray"
+plaud-linux-prune = "plaud_linux.retention:main"
 
 [tool.setuptools.packages.find]
 include = ["plaud_linux*"]

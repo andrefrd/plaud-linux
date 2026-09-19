@@ -9,6 +9,7 @@ import os
 
 from plaud_linux.recorder import AudioRecorder
 from plaud_linux.uploader import PlaudUploader
+from plaud_linux.retention import mark_and_prune
 
 
 class PlaudCLI:
@@ -58,6 +59,7 @@ class PlaudCLI:
                     print("\n  Upload concluido com sucesso!")
                 else:
                     print(f"\n  Falha no upload. MP3 salvo em: {mp3_path}")
+                mark_and_prune(self.recorder.recordings_dir, mp3_path, success)
                 print("  Pressione Enter para continuar...")
 
             self._upload_thread = threading.Thread(target=do_upload, daemon=False)

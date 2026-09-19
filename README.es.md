@@ -217,7 +217,53 @@ Este enfoque **no requiere claves de API privadas** y funciona mientras el web a
 | Ruta | Contenido |
 |---|---|
 | `~/.plaud-linux/session/` | Sesión del navegador (Google SSO) |
-| `~/.plaud-linux/recordings/` | MP3s con error de subida |
+| `~/.plaud-linux/recordings/` | Todo MP3 grabado (los ya subidos se borran tras 7 días) |
+
+### Retención de las grabaciones locales
+
+Los MP3 se conservan en `~/.plaud-linux/recordings/` durante `7` días después de
+una subida **confirmada**, y luego se borran — unos 100 MB por hora de audio, así
+que una semana intensa acumularía gigabytes indefinidamente.
+
+La regla es conservadora a propósito: un archivo solo se borra si tiene subida
+confirmada **y** está fuera del plazo. Lo que falló al subir (o nunca se subió)
+es la **única copia** de ese audio y se conserva **para siempre**, por antiguo
+que sea. Los archivos `.wav` aún en grabación nunca se tocan.
+
+Configúralo en `~/.plaud-linux/retention.conf`:
+
+```ini
+# Días para conservar un MP3 ya subido. 0 desactiva el borrado.
+days=7
+```
+
+O con la variable de entorno `PLAUD_RETENTION_DAYS` (el archivo tiene
+precedencia):
+
+```bash
+PLAUD_RETENTION_DAYS=30 plaud-linux-tray
+PLAUD_RETENTION_DAYS=0 plaud-linux         # no borrar nunca
+```
+
+Para verlo o aplicarlo manualmente:
+
+```bash
+plaud-linux-prune --dry-run    # qué se borraría
+plaud-linux-prune              # borrar ahora
+plaud-linux-prune --days 3     # plazo distinto, solo esta vez
+```
+
+Las grabaciones hechas **antes** de esta política no tienen registro de subida,
+así que nunca se borran. Si sabes que esos audios ya están en la nube, adóptalos
+una vez — el mtime pasa a ser la base del plazo:
+
+```bash
+plaud-linux-prune --adopt-existing --dry-run   # cuántos se adoptarían
+plaud-linux-prune --adopt-existing             # adoptar y limpiar
+```
+
+`plaud-linux-prune` funciona bien en cron: si no hay nada que borrar imprime una
+línea de resumen y sale con código 0.
 
 ---
 
