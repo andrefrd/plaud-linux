@@ -12,6 +12,20 @@ from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeo
 PLAUD_URL = "https://web.plaud.ai/"
 
 
+def _teto_imported(mp3_path: str) -> int:
+    """Teto de espera pelo 'Imported', proporcional ao tamanho do arquivo (min 120 s).
+
+    O teto fixo de 120 s do original estoura em gravacao grande E MESMO ASSIM o
+    metodo devolve True: foi assim que um MP3 truncado (4h25m de uma reuniao de
+    6h23m) passou como sucesso. Arquivo grande precisa de mais tempo.
+    """
+    try:
+        mb = os.path.getsize(mp3_path) / (1024 * 1024)
+    except OSError:
+        return 120_000
+    return max(120_000, int(mb * 4000))
+
+
 class PlaudUploader:
     def __init__(self, session_dir: str):
         self.session_dir = session_dir
@@ -57,7 +71,10 @@ class PlaudUploader:
             try:
                 context = p.chromium.launch_persistent_context(
                     user_data_dir=self.session_dir,
-                    headless=False,
+                    # headless=True: sem janela visivel o upload nao rouba o foco do
+                    # desktop, entao pode rodar com o usuario na maquina e em cron.
+                    # Verificado 18/09/2026: a sessao salva funciona em headless.
+                    headless=True,
                     args=["--disable-blink-features=AutomationControlled"],
                     locale="pt-BR"
                 )
@@ -67,7 +84,8 @@ class PlaudUploader:
 
             try:
                 page = context.pages[0] if context.pages else context.new_page()
-                page.goto(PLAUD_URL, wait_until="networkidle", timeout=30000)
+                page.goto(PLAUD_URL, wait_until="load", timeout=45000)
+
 
                 # Verificar se esta logado
                 try:
@@ -82,18 +100,25 @@ class PlaudUploader:
 
                 # 1. Clicar em "Add audio"
                 add_audio_btn = page.locator("div.c-layout-newrecording")
+                add_audio_btn.wait_for(state="visible", timeout=15000)
+                
+                # Aguarda 3 segundos para que o JS da pagina termine a inicializacao e os escutadores de eventos sejam registrados
+                page.wait_for_timeout(3000)
+                
                 add_audio_btn.click(timeout=10000)
                 print("   ok Clicou em 'Add audio'")
 
+
                 # 2. Esperar o dropdown e clicar em "Import audio"
                 import_btn = page.locator("div.menu-item", has_text="Import audio")
-                import_btn.wait_for(state="visible", timeout=5000)
+                import_btn.wait_for(state="visible", timeout=15000)
                 import_btn.click()
                 print("   ok Clicou em 'Import audio'")
 
                 # 3. Esperar o modal e o input de arquivo
                 file_input = page.locator("input[type='file'].my-file")
-                file_input.wait_for(state="attached", timeout=5000)
+                file_input.wait_for(state="attached", timeout=15000)
+
 
                 # 4. Enviar o arquivo para o input
                 file_input.set_input_files(mp3_path)
@@ -102,11 +127,35 @@ class PlaudUploader:
                 # 5. Aguardar ate o site confirmar "Imported"
                 print("   Aguardando confirmacao do site ('Imported')...")
                 try:
-                    page.locator("text=Imported").wait_for(state="visible", timeout=120000)
+                    page.locator("text=Imported").wait_for(state="visible", timeout=_teto_imported(mp3_path))
                     print("   ok Site confirmou: Imported")
                     
+                    print("   Fechando o modal de upload...")
+                    try:
+                        # Tentar pressionar Escape
+                        page.keyboard.press("Escape")
+                        
+                        # Tentar clicar em botões OK/Done/Close se visíveis
+                        for selector in ["button:has-text('OK')", "button:has-text('Done')", ".close-icon", ".dialog-close"]:
+                            try:
+                                btn = page.locator(selector).first
+                                if btn.is_visible(timeout=1000):
+                                    btn.click()
+                                    break
+                            except Exception:
+                                pass
+
+                        # Forçar remoção de overlays e modais do DOM para desobstruir cliques
+                        page.evaluate("""
+                            document.querySelectorAll('.modal-overlay, .modal-dialog__overlay, .modal-dialog, .el-overlay').forEach(el => el.remove());
+                        """)
+                    except Exception as e:
+                        print(f"   Aviso ao fechar modal de upload: {e}")
+
+
                     print("   Aguardando 10 segundos adicionais por seguranca (processamento do backend)...")
                     page.wait_for_timeout(10000)
+
 
                     # Verificar se o arquivo subiu vendo se o nome aparece na tabela de Recent files
                     base_name = os.path.splitext(os.path.basename(mp3_path))[0]
@@ -153,8 +202,14 @@ class PlaudUploader:
 
             except Exception as e:
                 print(f"Erro durante upload RPA: {e}")
+                try:
+                    page.screenshot(path="screenshot_error.png")
+                    print("   [Debug] Screenshot de erro salvo em screenshot_error.png")
+                except Exception:
+                    pass
                 context.close()
                 return False
+
 
     def _dismiss_modals(self, page):
         """Tenta fechar quaisquer modais/overlays que estejam bloqueando a interface."""

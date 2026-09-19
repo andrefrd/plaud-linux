@@ -156,13 +156,18 @@ class AudioRecorder:
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         output_mp3 = os.path.join(self.recordings_dir, f"plaud_{timestamp}.mp3")
 
+        expected = int(time.time() - self._start_time) if self._start_time else 0
+        # Timeout generoso: 120s nao bastam para gravacoes longas (ex.: 3h) —
+        # o ffmpeg era morto no meio e os WAV de origem eram apagados no
+        # finally, perdendo a gravacao inteira sem nenhum arquivo utilizavel.
+        conv_ok = False
         try:
             if len(existing_files) == 1:
                 # Apenas uma fonte — conversão direta
                 subprocess.run(
                     ["ffmpeg", "-y", "-i", existing_files[0],
                      "-codec:a", "libmp3lame", "-b:a", "128k", output_mp3],
-                    capture_output=True, timeout=120
+                    capture_output=True, timeout=1800
                 )
             else:
                 # Duas fontes — mixar com FFmpeg
@@ -172,28 +177,43 @@ class AudioRecorder:
                      "-i", existing_files[1],
                      "-filter_complex", "amerge=inputs=2,pan=stereo|c0<c0+c2|c1<c1+c3",
                      "-codec:a", "libmp3lame", "-b:a", "128k", output_mp3],
-                    capture_output=True, timeout=120
+                    capture_output=True, timeout=1800
                 )
+            conv_ok = os.path.exists(output_mp3) and os.path.getsize(output_mp3) > 0
+            if conv_ok and expected > 30:
+                # Validar duracao: MP3 truncado nao pode ser tratado como sucesso
+                try:
+                    probe = subprocess.run(
+                        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                         "-of", "csv=p=0", output_mp3],
+                        capture_output=True, text=True, timeout=60
+                    ).stdout.strip()
+                    if probe and float(probe) < expected - 10:
+                        print(f"⚠️  MP3 incompleto: {probe}s de audio para {expected}s gravados")
+                        conv_ok = False
+                except Exception as e:
+                    print(f"⚠️  Não foi possível validar o MP3: {e}")
         except Exception as e:
             print(f"❌ Erro na conversão FFmpeg: {e}")
-            return None
-        finally:
-            # Limpar arquivos WAV temporários
-            for f in self._raw_files:
-                try:
-                    os.remove(f)
-                except OSError:
-                    pass
-            self._raw_files = []
 
-        if os.path.exists(output_mp3) and os.path.getsize(output_mp3) > 0:
-            self._current_mp3 = output_mp3
-            duration = round(time.time() - self._start_time)
-            print(f"✅ MP3 gerado: {output_mp3} ({duration}s de gravação)")
-            return output_mp3
-        else:
-            print("❌ Falha ao gerar MP3")
+        if not conv_ok:
+            print("❌ Falha ao gerar MP3 — WAVs de origem preservados:")
+            for f in existing_files:
+                print(f"   {f}")
             return None
+
+        # Limpar arquivos WAV temporários (somente após conversão validada)
+        for f in self._raw_files:
+            try:
+                os.remove(f)
+            except OSError:
+                pass
+        self._raw_files = []
+
+        self._current_mp3 = output_mp3
+        duration = round(time.time() - self._start_time)
+        print(f"✅ MP3 gerado: {output_mp3} ({duration}s de gravação)")
+        return output_mp3
 
     def get_elapsed(self) -> int:
         """Retorna segundos decorridos desde o início da gravação."""
