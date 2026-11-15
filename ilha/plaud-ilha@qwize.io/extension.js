@@ -1,4 +1,4 @@
-// Plaud Ilha — "notch" de gravação para GNOME Shell 46 (Wayland).
+// Plaud Ilha — "notch" de gravação para GNOME Shell 46–50 (Wayland).
 //
 // Lê $XDG_RUNTIME_DIR/plaud-ilha/state.json (escrito pelo plaud-ilha-watchd)
 // uma vez por segundo e desenha um notch preso embaixo do relógio do painel,
@@ -113,8 +113,8 @@ export default class PlaudIlhaExtension extends Extension {
         });
 
         Main.layoutManager.addChrome(this._island, {
+            // affectsInputRegion: padrão true no 46 e removido no 50 — não passar.
             affectsStruts: false,
-            affectsInputRegion: true,
             // true esconderia o notch em fullscreen (layout.js#_updateActorVisibility)
             trackFullscreen: false,
         });
@@ -446,10 +446,18 @@ export default class PlaudIlhaExtension extends Extension {
         if (visible === this._unredirectOff)
             return;
         this._unredirectOff = visible;
-        if (visible)
+        // GNOME 47+: global.compositor; 46: Meta.*_for_display.
+        const comp = global.compositor;
+        if (comp?.disable_unredirect) {
+            if (visible)
+                comp.disable_unredirect();
+            else
+                comp.enable_unredirect();
+        } else if (visible) {
             Meta.disable_unredirect_for_display(global.display);
-        else
+        } else {
             Meta.enable_unredirect_for_display(global.display);
+        }
     }
 
     // Centralizado sob o relógio, colado na borda de baixo do painel; em

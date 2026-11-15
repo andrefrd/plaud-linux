@@ -18,7 +18,7 @@ extensão plaud-ilha@qwize.io (lê 1×/s e desenha)
 | `plaud-ilha-watchd` | `plaud_linux/ilha_watchd.py` (só stdlib; entry point do pacote) |
 | Socket de controle + guarda | `plaud_linux/control.py`, ligado em `plaud_linux/tray.py` |
 | Configuração | `plaud_linux/ilha.py` |
-| Extensão | `ilha/plaud-ilha@qwize.io/` (GNOME Shell 46) |
+| Extensão | `ilha/plaud-ilha@qwize.io/` (GNOME Shell 46–50) |
 | Serviço | `ilha/plaud-ilha-watchd.service` |
 
 ## Instalar
@@ -120,13 +120,17 @@ python3 -c 'from plaud_linux.control import send_command as s; print(s("status")
 python3 -c 'from plaud_linux.control import send_command as s; print(s("stop"))'
 ```
 
-## Notas de plataforma (GNOME 46)
+## Notas de plataforma (GNOME 46–50)
 
 - `trackFullscreen: true` no `addChrome` **esconde** o ator quando o monitor está em
   fullscreen (`layout.js#_updateActorVisibility`); a ilha usa `false` e desliga o
   unredirect (`Meta.disable_unredirect_for_display`) enquanto está visível, para não
   sumir atrás de vídeo/jogo em scanout direto.
 - No Wayland não existe `Alt+F2 r`: mudança na extensão exige logout/login.
+- GNOME 50 removeu `affectsInputRegion` do `addChrome` (passá-lo derruba o `enable()`) e
+  trocou `Meta.disable_unredirect_for_display` por `global.compositor.disable_unredirect()`.
+- Upgrade de Python do sistema (ex.: Ubuntu 24.04 → 26.04, 3.12 → 3.14) quebra o venv do
+  pipx (`No module named 'plaud_linux'`): rode `pipx install . --force` + `./install.sh` de novo.
 
 ## Testar
 
