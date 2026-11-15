@@ -116,8 +116,7 @@ class _IlhaMixin:
             self._control.close()
 
     def _notify_recording_started(self):
-        _notify_critical("⏺ GRAVANDO",
-                         f"Desde {time.strftime('%H:%M')} · pare pela ilha ou pelo ícone da bandeja")
+        self._notify("⏺ Plaud Linux", f"Gravando desde {time.strftime('%H:%M')}")
 
 
 # ─────────────────────────────────────────────

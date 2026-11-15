@@ -1,7 +1,8 @@
-// Plaud Ilha — indicador flutuante de gravação para GNOME Shell 46 (Wayland).
+// Plaud Ilha — "notch" de gravação para GNOME Shell 46 (Wayland).
 //
 // Lê $XDG_RUNTIME_DIR/plaud-ilha/state.json (escrito pelo plaud-ilha-watchd)
-// uma vez por segundo e desenha uma "ilha" no topo do monitor principal.
+// uma vez por segundo e desenha um notch preso embaixo do relógio do painel,
+// com botão de parar e de ocultar (recolhe para um mini notch).
 // Nunca pega foco de teclado; todo callback é protegido por try/catch porque
 // uma exceção não tratada aqui derruba a sessão inteira.
 
@@ -12,15 +13,14 @@ import Meta from 'gi://Meta';
 import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const TAG = 'plaud-ilha';
 const STALE_S = 5;
 const MISSING_GRACE_S = 5;
 const STOP_TIMEOUT_S = 120;
-const MARGIN = 8;
-const MODES = ['recording', 'warn', 'critical', 'silence', 'stalled', 'stale', 'uploading', 'nostate'];
+const CONFIRM_S = 4;
+const MODES = ['recording', 'warn', 'critical', 'silence', 'stalled', 'stale', 'uploading', 'nostate', 'collapsed'];
 const DEFAULT_LIMITS = {
     warn_hours: 3, critical_hours: 6, disk_warn_gb: 15, disk_stop_gb: 5,
 };
@@ -48,12 +48,34 @@ function fmtHours(h) {
     return Number.isInteger(h) ? `${h}` : fmtNum(h, 1);
 }
 
+function iconButton(iconName, styleClass, label = null) {
+    const box = new St.BoxLayout({style_class: 'plaud-ilha-btn-box'});
+    box.add_child(new St.Icon({icon_name: iconName, style_class: 'plaud-ilha-btn-icon'}));
+    let text = null;
+    if (label !== null) {
+        text = new St.Label({text: label, y_align: Clutter.ActorAlign.CENTER});
+        box.add_child(text);
+    }
+    const button = new St.Button({
+        style_class: `plaud-ilha-btn ${styleClass}`,
+        child: box,
+        reactive: true,
+        can_focus: false,
+        track_hover: true,
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    return [button, text];
+}
+
 export default class PlaudIlhaExtension extends Extension {
     enable() {
         this._state = null;
         this._failSince = null;
         this._loading = false;
         this._stopping = null;
+        this._confirmUntil = 0;
+        this._collapsedKey = null;
+        this._collapsedWarn = new Set();
         this._anim = null;
         this._unredirectOff = false;
         this._signals = [];
@@ -62,33 +84,46 @@ export default class PlaudIlhaExtension extends Extension {
         this._timer = new St.Label({text: '', style_class: 'plaud-ilha-timer', y_align: Clutter.ActorAlign.CENTER});
         this._info = new St.Label({text: '', style_class: 'plaud-ilha-info', y_align: Clutter.ActorAlign.CENTER});
 
-        const box = new St.BoxLayout({style_class: 'plaud-ilha-box', y_align: Clutter.ActorAlign.CENTER});
-        box.add_child(this._dot);
-        box.add_child(this._timer);
-        box.add_child(this._info);
+        [this._stopBtn, this._stopLabel] = iconButton('media-playback-stop-symbolic', 'plaud-ilha-stop', 'Parar');
+        this._stopBtn.connect('clicked', () => this._safe(() => this._onStopClicked()));
+        [this._hideBtn] = iconButton('go-up-symbolic', 'plaud-ilha-hide');
+        this._hideBtn.connect('clicked', () => this._safe(() => this._collapse()));
 
-        this._island = new St.Button({
+        this._island = new St.BoxLayout({
             style_class: 'plaud-ilha',
-            child: box,
             reactive: true,
-            can_focus: false,
             track_hover: true,
             visible: false,
         });
-        this._island.connect('clicked', () => this._safe(() => this._menu.toggle()));
+        this._island.add_child(this._dot);
+        this._island.add_child(this._timer);
+        this._island.add_child(this._info);
+        this._island.add_child(this._stopBtn);
+        this._island.add_child(this._hideBtn);
+
+        // Clique no mini notch expande de novo.
+        this._island.connect('button-release-event', () => {
+            this._safe(() => {
+                if (this._isCollapsed()) {
+                    this._collapsedKey = null;
+                    this._render();
+                }
+            });
+            return Clutter.EVENT_PROPAGATE;
+        });
 
         Main.layoutManager.addChrome(this._island, {
             affectsStruts: false,
             affectsInputRegion: true,
-            // true esconderia a ilha em fullscreen (layout.js#_updateActorVisibility)
+            // true esconderia o notch em fullscreen (layout.js#_updateActorVisibility)
             trackFullscreen: false,
         });
 
-        this._buildMenu();
-
-        this._signals.push([this._island, this._island.connect('notify::width', () => this._safe(() => this._reposition()))]);
-        this._signals.push([Main.layoutManager, Main.layoutManager.connect('monitors-changed', () => this._safe(() => this._reposition()))]);
-        this._signals.push([global.display, global.display.connect('workareas-changed', () => this._safe(() => this._reposition()))]);
+        const reposition = () => this._safe(() => this._reposition());
+        this._signals.push([this._island, this._island.connect('notify::width', reposition)]);
+        this._signals.push([Main.layoutManager, Main.layoutManager.connect('monitors-changed', reposition)]);
+        this._signals.push([global.display, global.display.connect('workareas-changed', reposition)]);
+        this._signals.push([global.display, global.display.connect('in-fullscreen-changed', reposition)]);
 
         this._timeoutId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
             this._safe(() => this._poll());
@@ -107,15 +142,12 @@ export default class PlaudIlhaExtension extends Extension {
         this._signals = [];
         this._setUnredirect(false);
 
-        this._menuManager = null;
-        this._menu?.destroy();
-        this._menu = null;
         if (this._island) {
             Main.layoutManager.removeChrome(this._island);
             this._island.destroy();
         }
         this._island = this._dot = this._timer = this._info = null;
-        this._stopItem = this._openItem = this._copyItem = null;
+        this._stopBtn = this._stopLabel = this._hideBtn = null;
         this._state = null;
     }
 
@@ -127,36 +159,38 @@ export default class PlaudIlhaExtension extends Extension {
         }
     }
 
-    // ── menu ───────────────────────────────────────────────
+    // ── ações ──────────────────────────────────────────────
 
-    _buildMenu() {
-        this._menu = new PopupMenu.PopupMenu(this._island, 0.5, St.Side.TOP);
-        Main.uiGroup.add_child(this._menu.actor);
-        this._menu.actor.hide();
-        this._menuManager = new PopupMenu.PopupMenuManager(this._island);
-        this._menuManager.addMenu(this._menu);
-
-        this._stopItem = new PopupMenu.PopupMenuItem('Parar gravação');
-        this._stopItem.connect('activate', () => this._safe(() => this._requestStop()));
-        this._menu.addMenuItem(this._stopItem);
-
-        this._openItem = new PopupMenu.PopupMenuItem('Abrir pasta de gravações');
-        this._openItem.connect('activate', () => this._safe(() => this._openFolder()));
-        this._menu.addMenuItem(this._openItem);
-
-        this._copyItem = new PopupMenu.PopupMenuItem('Copiar caminho do arquivo');
-        this._copyItem.connect('activate', () => this._safe(() => this._copyPath()));
-        this._menu.addMenuItem(this._copyItem);
+    _sessionKey() {
+        const s = this._state;
+        return s ? String(s.session_started_ts ?? s.session_started ?? s.state) : null;
     }
 
-    _updateMenu() {
-        const s = this._state;
-        const canStop = !!(s && s.control && s.phase === 'recording' && !this._stopping);
-        this._stopItem.setSensitive(canStop);
-        this._stopItem.label.text = s && !s.control
-            ? 'Parar gravação (requer plaud-ilha-control)'
-            : this._stopping ? 'Parando…' : 'Parar gravação';
-        this._copyItem.setSensitive(!!(s && s.files && s.files.length));
+    _isCollapsed() {
+        return this._collapsedKey !== null && this._collapsedKey === this._sessionKey();
+    }
+
+    _collapse() {
+        this._collapsedKey = this._sessionKey();
+        this._collapsedWarn = this._currentWarn ?? new Set();
+        this._confirmUntil = 0;
+        this._render();
+    }
+
+    // Primeiro clique arma, segundo (em até 4 s) para — evita parar reunião sem querer.
+    _onStopClicked() {
+        const now = Date.now() / 1000;
+        if (now > this._confirmUntil) {
+            this._confirmUntil = now + CONFIRM_S;
+            this._render();
+            GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, CONFIRM_S, () => {
+                this._safe(() => this._render());
+                return GLib.SOURCE_REMOVE;
+            });
+            return;
+        }
+        this._confirmUntil = 0;
+        this._requestStop();
     }
 
     _requestStop() {
@@ -209,18 +243,6 @@ export default class PlaudIlhaExtension extends Extension {
         });
     }
 
-    _openFolder() {
-        const dir = this._state?.recordings_dir ?? GLib.build_filenamev([GLib.get_home_dir(), '.plaud-linux', 'recordings']);
-        Gio.AppInfo.launch_default_for_uri(GLib.filename_to_uri(dir, null),
-            global.create_app_launch_context(0, -1));
-    }
-
-    _copyPath() {
-        const files = this._state?.files ?? [];
-        if (files.length)
-            St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, files.join('\n'));
-    }
-
     // ── leitura do estado ─────────────────────────────────
 
     _poll() {
@@ -264,7 +286,7 @@ export default class PlaudIlhaExtension extends Extension {
 
         if (!s) {
             if (this._failSince !== null && now - this._failSince >= MISSING_GRACE_S)
-                this._show('nostate', '', 'sem estado — plaud-ilha-watchd está rodando?', null);
+                this._show({mode: 'nostate', info: 'sem estado — plaud-ilha-watchd está rodando?'});
             else
                 this._hide();
             return;
@@ -273,17 +295,18 @@ export default class PlaudIlhaExtension extends Extension {
         const updated = typeof s.updated_ts === 'number' ? s.updated_ts : Date.parse(s.updated) / 1000;
         const age = Number.isFinite(updated) ? now - updated : Infinity;
         if (age > STALE_S) {
-            this._show('stale', '', 'estado desatualizado — watchd parado', null);
+            this._show({mode: 'stale', info: 'estado desatualizado — watchd parado'});
             return;
         }
 
         if (s.state === 'uploading') {
             this._stopping = null;
-            this._show('uploading', '', s.phase === 'converting' ? 'convertendo…' : 'enviando…', null, '↑');
+            this._show({mode: 'uploading', dot: '↑', info: s.phase === 'converting' ? 'convertendo…' : 'enviando…'});
             return;
         }
         if (s.state !== 'recording') {
             this._stopping = null;
+            this._collapsedKey = null;
             this._hide();
             return;
         }
@@ -302,6 +325,12 @@ export default class PlaudIlhaExtension extends Extension {
             warn.add('disco<15gb');
         if (Number.isFinite(free) && limits.disk_stop_gb > 0 && free < limits.disk_stop_gb)
             warn.add('disco<5gb');
+        warn.delete('sessao-antiga');
+        this._currentWarn = warn;
+
+        // Aviso novo reabre o notch recolhido — ocultar não pode esconder um alerta.
+        if (this._isCollapsed() && [...warn].some(w => !this._collapsedWarn.has(w)))
+            this._collapsedKey = null;
 
         const parts = [];
         if (Number.isFinite(Number(s.bytes)))
@@ -333,17 +362,23 @@ export default class PlaudIlhaExtension extends Extension {
             if (warn.has('disco<15gb'))
                 parts.push('DISCO BAIXO');
         }
-        if (warn.has('sessao-antiga'))
-            parts.push('há WAV antigo');
         if (this._stopping)
             parts.splice(0, parts.length, 'parando…');
 
-        this._show(mode, fmtClock(elapsed), `· ${parts.join(' · ')}`, anim);
+        this._show({
+            mode,
+            timer: fmtClock(elapsed),
+            info: `· ${parts.join(' · ')}`,
+            anim,
+            stop: true,
+            collapsed: this._isCollapsed(),
+        });
     }
 
-    _show(mode, timer, info, anim, dot = '●') {
+    _show({mode, timer = '', info = '', anim = null, dot = '●', stop = false, collapsed = false}) {
         for (const m of MODES) {
-            if (m === mode)
+            const on = m === mode || (m === 'collapsed' && collapsed);
+            if (on)
                 this._island.add_style_class_name(m);
             else
                 this._island.remove_style_class_name(m);
@@ -352,8 +387,27 @@ export default class PlaudIlhaExtension extends Extension {
         this._timer.text = timer;
         this._timer.visible = timer !== '';
         this._info.text = info;
+        this._info.visible = !collapsed;
+        this._hideBtn.visible = stop && !collapsed;
+
+        const s = this._state;
+        const canStop = !!(s && s.control && s.phase === 'recording' && !this._stopping);
+        const confirming = canStop && Date.now() / 1000 <= this._confirmUntil;
+        this._stopBtn.visible = stop && !collapsed;
+        this._stopBtn.reactive = canStop;
+        this._stopLabel.text = !s?.control ? 'sem controle'
+            : this._stopping ? 'parando…'
+                : confirming ? 'Confirmar' : 'Parar';
+        if (confirming)
+            this._stopBtn.add_style_class_name('confirm');
+        else
+            this._stopBtn.remove_style_class_name('confirm');
+        if (canStop)
+            this._stopBtn.remove_style_class_name('disabled');
+        else
+            this._stopBtn.add_style_class_name('disabled');
+
         this._setAnim(anim);
-        this._updateMenu();
         if (!this._island.visible) {
             this._island.show();
             this._setUnredirect(true);
@@ -363,7 +417,6 @@ export default class PlaudIlhaExtension extends Extension {
 
     _hide() {
         if (this._island.visible) {
-            this._menu.close();
             this._island.hide();
             this._setAnim(null);
             this._setUnredirect(false);
@@ -388,7 +441,7 @@ export default class PlaudIlhaExtension extends Extension {
     }
 
     // Em fullscreen o Mutter pode mandar a janela direto para a tela
-    // (unredirect/scanout) e pular a composição — a ilha sumiria.
+    // (unredirect/scanout) e pular a composição — o notch sumiria.
     _setUnredirect(visible) {
         if (visible === this._unredirectOff)
             return;
@@ -399,13 +452,24 @@ export default class PlaudIlhaExtension extends Extension {
             Meta.enable_unredirect_for_display(global.display);
     }
 
+    // Centralizado sob o relógio, colado na borda de baixo do painel; em
+    // fullscreen (painel escondido) cola no topo do monitor.
     _reposition() {
         const monitor = Main.layoutManager.primaryMonitor;
         if (!monitor || !this._island)
             return;
+        const panel = Main.layoutManager.panelBox;
+        const panelVisible = panel.visible && !monitor.inFullscreen;
+        let centerX = monitor.x + monitor.width / 2;
+        const clock = Main.panel?.statusArea?.dateMenu;
+        if (clock && panelVisible) {
+            const [cx] = clock.get_transformed_position();
+            if (clock.width > 0)
+                centerX = cx + clock.width / 2;
+        }
         const width = this._island.width;
-        const x = Math.max(monitor.x + MARGIN, monitor.x + Math.floor((monitor.width - width) / 2));
-        const y = monitor.y + Main.layoutManager.panelBox.height + MARGIN;
+        const x = Math.max(monitor.x, Math.min(monitor.x + monitor.width - width, Math.round(centerX - width / 2)));
+        const y = monitor.y + (panelVisible ? panel.height : 0);
         this._island.set_position(x, y);
     }
 }

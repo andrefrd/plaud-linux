@@ -35,17 +35,15 @@ def check_dependencies():
 
 def check_playwright():
     """Garante que o Chromium do Playwright está instalado."""
-    from pathlib import Path
-    
-    cache_dir = Path(os.path.expanduser("~/.cache/ms-playwright"))
-    
-    has_chromium = False
-    if cache_dir.exists():
-        for item in cache_dir.iterdir():
-            if item.is_dir() and item.name.startswith("chromium-"):
-                has_chromium = True
-                break
-                
+    # Cada versão do playwright exige uma revisão própria do Chromium; checar
+    # só "existe algum chromium-*" deixava o upload quebrado após um upgrade.
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            has_chromium = os.path.exists(p.chromium.executable_path)
+    except Exception:
+        has_chromium = False
+
     if not has_chromium:
         print("Navegador Chromium para o Playwright nao detectado.")
         print("Instalando Chromium automaticamente (isso ocorre apenas na primeira execucao)...")

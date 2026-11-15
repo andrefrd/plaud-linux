@@ -1,7 +1,7 @@
 # Ilha de gravação (GNOME Shell / Wayland)
 
-Indicador flutuante no topo da tela enquanto o Plaud Linux grava: tempo, tamanho,
-disco livre e avisos. Fica acima de janelas maximizadas e de fullscreen e nunca pega
+Notch preso embaixo do relógio do painel enquanto o Plaud Linux grava: tempo, tamanho,
+disco livre, avisos e botões **Parar** / **Ocultar**. Fica acima de janelas maximizadas e de fullscreen e nunca pega
 o foco do teclado. É um segundo canal: o ícone da bandeja continua existindo.
 
 ```
@@ -45,8 +45,9 @@ Remover: `./ilha/install.sh --uninstall`.
 | cinza `estado desatualizado` | `state.json` com mais de 5 s (watchd parado) |
 | cinza `sem estado` | `state.json` ausente ou corrompido por 5 s |
 
-Clique na ilha: **Parar gravação** (via socket da tray), **Abrir pasta de gravações**,
-**Copiar caminho do arquivo**.
+- **Parar**: dois cliques (o primeiro vira "Confirmar" por 4 s), via socket da tray.
+- **Ocultar** (˄): recolhe para um mini notch `● 01:12:05`; clique nele expande. Um aviso
+  novo (3 h, disco, silêncio…) reabre o notch sozinho, e cada gravação nova começa expandida.
 
 Cada aviso novo dispara `notify-send -u critical` uma vez. WAV antigo não convertido
 (gravação órfã) gera um aviso por dia.
@@ -57,9 +58,6 @@ A tray, dona do processo de gravação, para sozinha quando:
 
 - a gravação chega a `auto_stop_hours` (padrão 8 h);
 - o disco das gravações fica abaixo de `disk_stop_gb` (padrão 5 GB).
-
-Ao iniciar a gravação a tray manda uma notificação crítica (fica na tela até ser
-dispensada).
 
 ## Configuração
 

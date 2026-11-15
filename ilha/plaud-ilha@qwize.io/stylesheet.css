@@ -1,48 +1,78 @@
+/* Notch preso embaixo do relógio: mesma cor do painel, cantos só embaixo. */
 .plaud-ilha {
-  height: 34px;
-  border-radius: 17px;
-  padding: 0 14px;
-  background-color: rgba(20, 20, 20, 0.86);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  height: 36px;
+  border-radius: 0 0 18px 18px;
+  padding: 0 8px 0 18px;
+  background-color: rgba(0, 0, 0, 0.94);
+  border: 2px solid transparent;
+  border-top-width: 0;
   color: #f2f2f2;
   font-size: 13px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  spacing: 8px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
 }
 
-.plaud-ilha-box { spacing: 8px; }
+.plaud-ilha.collapsed {
+  height: 22px;
+  padding: 0 14px;
+  border-radius: 0 0 12px 12px;
+  font-size: 11px;
+  spacing: 6px;
+}
 
 .plaud-ilha-dot { font-size: 13px; color: #9aa4a8; }
+.plaud-ilha.collapsed .plaud-ilha-dot { font-size: 10px; }
 .plaud-ilha-timer { font-family: monospace; font-weight: bold; }
-.plaud-ilha-info { color: #d8d8d8; }
+.plaud-ilha-info { color: #c8c8c8; }
 
+/* Botões */
+.plaud-ilha-btn {
+  border-radius: 13px;
+  padding: 3px 10px;
+  color: #f2f2f2;
+  background-color: rgba(255, 255, 255, 0.10);
+}
+.plaud-ilha-btn:hover { background-color: rgba(255, 255, 255, 0.20); }
+.plaud-ilha-btn-box { spacing: 5px; }
+.plaud-ilha-btn-icon { icon-size: 14px; }
+
+.plaud-ilha-stop { background-color: #e5484d; font-weight: bold; margin-left: 6px; }
+.plaud-ilha-stop:hover { background-color: #f0676b; }
+.plaud-ilha-stop.confirm { background-color: #ffffff; color: #c4161c; }
+.plaud-ilha-stop.disabled,
+.plaud-ilha-stop.disabled:hover { background-color: rgba(255, 255, 255, 0.08); color: #8a8a8a; }
+.plaud-ilha-hide { padding: 3px 7px; background-color: transparent; color: #9aa4a8; }
+
+/* Estados */
 .plaud-ilha.recording .plaud-ilha-dot { color: #e5484d; }
 
-.plaud-ilha.warn { border: 2px solid #e5484d; }
+.plaud-ilha.warn { border-color: #f5a524; }
 .plaud-ilha.warn .plaud-ilha-dot,
 .plaud-ilha.warn .plaud-ilha-timer,
 .plaud-ilha.warn .plaud-ilha-info { color: #f5a524; }
 
-.plaud-ilha.critical { background-color: rgba(120, 18, 22, 0.92); border: 2px solid #e5484d; }
+.plaud-ilha.critical { background-color: rgba(120, 18, 22, 0.96); border-color: #e5484d; }
 .plaud-ilha.critical .plaud-ilha-dot,
 .plaud-ilha.critical .plaud-ilha-timer,
 .plaud-ilha.critical .plaud-ilha-info { color: #ffffff; }
+.plaud-ilha.critical .plaud-ilha-stop { background-color: #ffffff; color: #c4161c; }
 
+.plaud-ilha.silence { border-color: #f5a524; }
 .plaud-ilha.silence .plaud-ilha-dot,
 .plaud-ilha.silence .plaud-ilha-timer,
 .plaud-ilha.silence .plaud-ilha-info { color: #f5a524; }
-.plaud-ilha.silence { border: 2px solid #f5a524; }
 
-.plaud-ilha.stalled { border: 2px solid #f5a524; }
+.plaud-ilha.stalled { border-color: #f5a524; }
 .plaud-ilha.stalled .plaud-ilha-dot,
 .plaud-ilha.stalled .plaud-ilha-info { color: #f5a524; }
 
 .plaud-ilha.stale,
-.plaud-ilha.nostate { border: 2px solid #9aa4a8; background-color: rgba(40, 40, 40, 0.86); }
+.plaud-ilha.nostate { border-color: #6b7378; padding-right: 18px; }
 .plaud-ilha.stale .plaud-ilha-dot,
 .plaud-ilha.stale .plaud-ilha-info,
 .plaud-ilha.nostate .plaud-ilha-dot,
 .plaud-ilha.nostate .plaud-ilha-info { color: #9aa4a8; }
 
+.plaud-ilha.uploading { border-color: #3b82f6; padding-right: 18px; }
 .plaud-ilha.uploading .plaud-ilha-dot,
-.plaud-ilha.uploading .plaud-ilha-info { color: #3b82f6; }
-.plaud-ilha.uploading { border: 1px solid #3b82f6; }
+.plaud-ilha.uploading .plaud-ilha-info { color: #6ea2ff; }
