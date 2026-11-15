@@ -6,9 +6,8 @@ import subprocess
 import sys
 import os
 
-from plaud_linux.recorder import AudioRecorder
-from plaud_linux.uploader import PlaudUploader
-from plaud_linux.cli import PlaudCLI
+# Imports pesados (playwright) ficam dentro dos entry points: o
+# plaud-ilha-watchd importa o pacote e deve rodar só com a stdlib.
 
 
 SESSION_DIR = os.path.expanduser("~/.plaud-linux/session")
@@ -65,6 +64,10 @@ def check_playwright():
 
 def main():
     """Entry point principal — modo CLI (terminal)."""
+    from plaud_linux.recorder import AudioRecorder
+    from plaud_linux.uploader import PlaudUploader
+    from plaud_linux.cli import PlaudCLI
+
     ensure_dirs()
     check_dependencies()
     check_playwright()
@@ -84,6 +87,9 @@ def main():
 
 def main_tray():
     """Entry point para modo System Tray (GNOME/Wayland/X11)."""
+    from plaud_linux.recorder import AudioRecorder
+    from plaud_linux.uploader import PlaudUploader
+
     ensure_dirs()
     check_dependencies()
     check_playwright()

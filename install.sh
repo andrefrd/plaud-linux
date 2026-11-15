@@ -132,6 +132,15 @@ else
     echo "  Autostart ignorado."
 fi
 
+# ─── 7. Ilha de gravação (opcional, GNOME) ────
+if [[ "${XDG_CURRENT_DESKTOP:-}" == *GNOME* ]] || command -v gnome-shell &>/dev/null; then
+    echo ""
+    read -p "  Instalar a ilha de gravação (indicador sempre visível no GNOME)? [S/n] " REPLY
+    if [[ ! "$REPLY" =~ ^[Nn]$ ]]; then
+        "$SCRIPT_DIR/ilha/install.sh" || echo "  Aviso: falha ao instalar a ilha (veja ilha/README.md)."
+    fi
+fi
+
 # ─────────────────────────────────────────────
 echo ""
 echo "========================================"

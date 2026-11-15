@@ -1,0 +1,13 @@
+[Unit]
+Description=Plaud Ilha — observa a gravação do Plaud Linux e publica state.json
+Documentation=https://github.com/andrefrd/plaud-linux/tree/main/ilha
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/plaud-ilha-watchd
+Restart=always
+RestartSec=2
+Nice=5
+
+[Install]
+WantedBy=default.target

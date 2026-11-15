@@ -215,6 +215,14 @@ class AudioRecorder:
         print(f"✅ MP3 gerado: {output_mp3} ({duration}s de gravação)")
         return output_mp3
 
+    @property
+    def raw_files(self) -> list[str]:
+        return list(self._raw_files)
+
+    @property
+    def start_time(self) -> float | None:
+        return self._start_time if self.is_recording else None
+
     def get_elapsed(self) -> int:
         """Retorna segundos decorridos desde o início da gravação."""
         if self._start_time and self.is_recording:

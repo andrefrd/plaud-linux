@@ -9,11 +9,13 @@ import subprocess
 import sys
 import threading
 import signal
+import time
 from pathlib import Path
 
 from plaud_linux.recorder import AudioRecorder
 from plaud_linux.uploader import PlaudUploader
 from plaud_linux.retention import mark_and_prune
+from plaud_linux.control import ControlServer, RecordingGuard
 
 
 # Diretório de assets (ícones PNG)
@@ -68,11 +70,61 @@ def _try_import_appindicator():
         return None, None
 
 
+def _notify_critical(title: str, body: str):
+    """Notificação que fica na tela até ser dispensada (não some sozinha)."""
+    try:
+        subprocess.Popen(
+            ["notify-send", "-u", "critical", "-a", "Plaud Linux",
+             "--icon=audio-input-microphone", title, body],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+    except OSError:
+        pass
+
+
+class _IlhaMixin:
+    """Estado exposto à ilha (socket de controle) e guarda de duração/disco.
+
+    Cada backend define ``recorder``, ``_phase`` e ``request_stop()``.
+    """
+
+    _phase = "idle"
+    _control = None
+
+    def status(self) -> dict:
+        rec = self.recorder
+        return {
+            "phase": self._phase,
+            "recording": rec.is_recording,
+            "started": rec.start_time,
+            "files": rec.raw_files if rec.is_recording or self._phase != "idle" else [],
+            "recordings_dir": rec.recordings_dir,
+            "pid": os.getpid(),
+        }
+
+    def _start_ilha(self):
+        try:
+            self._control = ControlServer(self.status, self.request_stop)
+            self._control.start()
+        except OSError as e:
+            print(f"⚠️  Socket de controle da ilha indisponível: {e}")
+            self._control = None
+        RecordingGuard(self.recorder, self.request_stop, _notify_critical).start()
+
+    def _stop_ilha(self):
+        if self._control is not None:
+            self._control.close()
+
+    def _notify_recording_started(self):
+        _notify_critical("⏺ GRAVANDO",
+                         f"Desde {time.strftime('%H:%M')} · pare pela ilha ou pelo ícone da bandeja")
+
+
 # ─────────────────────────────────────────────
 #  Implementação GTK/AppIndicator (Wayland)
 # ─────────────────────────────────────────────
 
-class _GTKTray:
+class _GTKTray(_IlhaMixin):
     """Backend AppIndicator3 — compatível com Wayland/GNOME Shell."""
 
     def __init__(self, recorder: AudioRecorder, uploader: PlaudUploader,
@@ -107,18 +159,30 @@ class _GTKTray:
         mic = mode in ("mic", "both")
         system = mode in ("system", "both")
         self.recorder.start(record_mic=mic, record_system=system)
+        self._phase = "recording"
         self._set_icon("recording")
-        self._notify("⏺ Plaud Linux", "Gravando...")
+        self._notify_recording_started()
         self._rebuild_menu()
+
+    def request_stop(self) -> bool:
+        """Chamado pelo socket/guarda (fora da thread GTK)."""
+        if not self.recorder.is_recording or self._phase != "recording":
+            return False
+        self._phase = "stopping"
+        from gi.repository import GLib
+        GLib.idle_add(lambda: self._stop_recording(None) and False)
+        return True
 
     def _stop_recording(self, widget):
         if not self.recorder.is_recording:
             return
+        self._phase = "converting"
         self._set_icon("uploading")
 
         def process():
             mp3_path = self.recorder.stop()
             if mp3_path:
+                self._phase = "uploading"
                 self._notify("📤 Plaud Linux", "Fazendo upload…")
                 success = self.uploader.upload(mp3_path)
                 if success:
@@ -128,6 +192,7 @@ class _GTKTray:
                 mark_and_prune(self.recorder.recordings_dir, mp3_path, success)
             else:
                 self._notify("❌ Plaud Linux", "Nenhum áudio gravado.")
+            self._phase = "idle"
             self._set_icon("idle")
             self.Gtk.main_iteration_do(False)
             self._rebuild_menu()
@@ -150,6 +215,7 @@ class _GTKTray:
     def _do_quit(self, widget):
         if self.recorder.is_recording:
             self.recorder.stop()
+        self._stop_ilha()
         self.Gtk.main_quit()
 
     def _rebuild_menu(self):
@@ -207,19 +273,23 @@ class _GTKTray:
         self._indicator.set_title("Plaud Linux")
 
         self._rebuild_menu()
+        self._start_ilha()
 
         # Captura Ctrl+C para sair limpo
         signal.signal(signal.SIGINT, lambda *_: Gtk.main_quit())
         signal.signal(signal.SIGTERM, lambda *_: Gtk.main_quit())
 
-        Gtk.main()
+        try:
+            Gtk.main()
+        finally:
+            self._stop_ilha()
 
 
 # ─────────────────────────────────────────────
 #  Implementação pystray (X11 / fallback)
 # ─────────────────────────────────────────────
 
-class _PystrayTray:
+class _PystrayTray(_IlhaMixin):
     """Backend pystray — funciona em X11 ou Wayland com XWayland."""
 
     def __init__(self, recorder: AudioRecorder, uploader: PlaudUploader):
@@ -265,35 +335,48 @@ class _PystrayTray:
         if self.recorder.is_recording:
             return
         self.recorder.start(record_mic=True, record_system=True)
+        self._phase = "recording"
         icon.icon = self._load_or_create_icon("recording")
         icon.title = "Plaud Linux - Gravando..."
-        self._notify("⏺ Plaud Linux", "Gravando...")
+        self._notify_recording_started()
 
     def _on_start_mic_only(self, icon, item):
         if self.recorder.is_recording:
             return
         self.recorder.start(record_mic=True, record_system=False)
+        self._phase = "recording"
         icon.icon = self._load_or_create_icon("recording")
         icon.title = "Plaud Linux - Gravando mic..."
-        self._notify("⏺ Plaud Linux", "Gravando Mic...")
+        self._notify_recording_started()
 
     def _on_start_system_only(self, icon, item):
         if self.recorder.is_recording:
             return
         self.recorder.start(record_mic=False, record_system=True)
+        self._phase = "recording"
         icon.icon = self._load_or_create_icon("recording")
         icon.title = "Plaud Linux - Gravando sistema..."
-        self._notify("⏺ Plaud Linux", "Gravando Sistema...")
+        self._notify_recording_started()
+
+    def request_stop(self) -> bool:
+        if not self.recorder.is_recording or self._phase != "recording":
+            return False
+        self._phase = "stopping"
+        threading.Thread(target=self._on_stop_recording,
+                         args=(self._icon_obj, None), daemon=True).start()
+        return True
 
     def _on_stop_recording(self, icon, item):
         if not self.recorder.is_recording:
             return
+        self._phase = "converting"
         icon.icon = self._load_or_create_icon("uploading")
         icon.title = "Plaud Linux - Processando..."
 
         def process():
             mp3_path = self.recorder.stop()
             if mp3_path:
+                self._phase = "uploading"
                 success = self.uploader.upload(mp3_path)
                 if success:
                     icon.notify("Upload concluído!", "Plaud Linux")
@@ -302,6 +385,7 @@ class _PystrayTray:
                 mark_and_prune(self.recorder.recordings_dir, mp3_path, success)
             else:
                 icon.notify("Erro: nenhum áudio gravado.", "Plaud Linux")
+            self._phase = "idle"
             icon.icon = self._load_or_create_icon("idle")
             icon.title = "Plaud Linux - Pronto"
 
@@ -323,6 +407,7 @@ class _PystrayTray:
     def _on_quit(self, icon, item):
         if self.recorder.is_recording:
             self.recorder.stop()
+        self._stop_ilha()
         icon.stop()
 
     def run(self):
@@ -349,7 +434,11 @@ class _PystrayTray:
             title="Plaud Linux - Pronto",
             menu=menu,
         )
-        self._icon_obj.run()
+        self._start_ilha()
+        try:
+            self._icon_obj.run()
+        finally:
+            self._stop_ilha()
 
 
 # ─────────────────────────────────────────────

@@ -1,0 +1,8 @@
+{
+  "uuid": "plaud-ilha@qwize.io",
+  "name": "Plaud Ilha",
+  "description": "Indicador flutuante sempre visível enquanto o Plaud Linux está gravando. Lê $XDG_RUNTIME_DIR/plaud-ilha/state.json (plaud-ilha-watchd).",
+  "shell-version": ["46"],
+  "url": "https://github.com/andrefrd/plaud-linux",
+  "version": 1
+}

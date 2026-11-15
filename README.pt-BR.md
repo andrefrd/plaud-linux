@@ -125,6 +125,21 @@ rm ~/.config/autostart/plaud-linux.desktop
 
 ---
 
+### 🏝️ Ilha de gravação (GNOME / Wayland)
+
+Pílula flutuante sempre visível no topo da tela durante a gravação — tempo, tamanho,
+disco livre e avisos (3 h / 6 h, disco baixo, silêncio digital, gravador travado).
+Fica acima de janelas maximizadas e de fullscreen, não rouba foco e o menu dela para
+a gravação. A tray também para sozinha em 8 h ou com menos de 5 GB livres.
+
+```bash
+./ilha/install.sh   # observador systemd --user + extensão GNOME Shell 46; depois logout/login
+```
+
+Detalhes, configuração e contrato do `state.json`: [`ilha/README.md`](ilha/README.md).
+
+---
+
 ### 💻 CLI (Terminal)
 
 ```bash

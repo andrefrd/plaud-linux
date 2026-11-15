@@ -125,6 +125,21 @@ rm ~/.config/autostart/plaud-linux.desktop
 
 ---
 
+### 🏝️ Recording island (GNOME / Wayland)
+
+A floating, always-visible pill at the top of the screen while recording — elapsed
+time, size, free disk and warnings (3 h / 6 h, low disk, digital silence, stalled
+recorder). Stays above maximized and fullscreen windows, never steals focus, and its
+menu can stop the recording. The tray also auto-stops at 8 h or below 5 GB free disk.
+
+```bash
+./ilha/install.sh   # systemd --user watcher + GNOME Shell 46 extension, then log out/in
+```
+
+Details, config and the `state.json` contract: [`ilha/README.md`](ilha/README.md).
+
+---
+
 ### 💻 CLI (Terminal)
 
 ```bash
